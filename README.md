@@ -6,4 +6,9 @@ Beinagrind sem er með andlit fast við hendi (eins og gríma) og tekur það af
 
 21.11.24 - Kom fyrir grímunni á hendina og setti up Rasp. Pi og náði að lokum virkni (höndin færir sig frá og fyrir andliti) fyrir senuna, gerði aðra hendi sem er föst(veifandi)
 
-26.11.24 - 
+26.11.24 - Bættum við Servo mótor við hendina sem er föst. Náðum tenginu á milli tveggja ESP með að nota RaspPi sem broker og byrjuðum að setja upp Node-Red Dashboard.
+
+28.11.24 -
+
+3.12.24 - 
+
