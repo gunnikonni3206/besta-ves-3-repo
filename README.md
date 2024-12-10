@@ -2,7 +2,12 @@
 
 Höfundar; Gunnar, Bjarni, Eduardo
 
-Beinagrind sem er með andlit fast við hendi (eins og gríma) og tekur það af þegar X hlutur kemur nálægt, samstundis spilast hljóð.
+Beinagrind með Trump andliti fast við hendi, eins og gríma. Hendin færist frá andliti og sýnir hauskúpu, kjálkinn hreyfist upp og niður, hægri hendi byrjar að veifa, og hauskúpan fer í allar áttir. (Reyna að skapa "hræðslu effect)  Á sama tíma fer Clinton, sem er síðari hlutinn, að bregðast við með því að snúast í hringi.
+
+
+
+
+
 
 19.11.24 - Gerðum Servo mótor fyrir hendina, prentum út Trump grímu og komum fyrir Sonic skynjara. Einnig fundum seinna modelið, Clinton
 
@@ -14,3 +19,5 @@ Beinagrind sem er með andlit fast við hendi (eins og gríma) og tekur það af
 
 3.12.24 - Höldum áfram með að fínpússa tengingar og þaraðleiðandi að gera senu. 
 
+Næstu tímar voru framhald af því, smá atriði eins og að mála Clinton, sett textíl sem notað var sem jakki og bindi.
+Klárað að gera senu og t.d. fest skynjarann við standinn. 
