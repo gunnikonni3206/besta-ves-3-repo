@@ -1,4 +1,4 @@
-# besta-ves-3-repo
+# besta-ves-3-
 
 Beinagrind sem er með andlit fast við hendi (eins og gríma) og tekur það af þegar X hlutur kemur nálægt, samstundis spilast hljóð.
 
