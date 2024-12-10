@@ -1,0 +1,164 @@
+import network
+import time
+from umqtt.simple import MQTTClient
+from machine import Pin, PWM
+
+SSID = "TskoliVESM"
+PASSWORD = "Fallegurhestur"
+
+MQTT_SERVER = "10.201.48.67"
+MQTT_TOPIC_HEAD = "head"
+MQTT_TOPIC_JAW = "jaw"
+MQTT_TOPIC_WAVE = "wave"
+MQTT_TOPIC_NECK = "neck"
+MQTT_TOPIC_DISTANCE = "distance"
+MQTT_TOPIC_HAND_OPEN = "hand_open"
+MQTT_TOPIC_HAND_CLOSE = "hand_close"
+MQTT_TOPIC_OPEN_DISTANCE = "open_distance"
+MQTT_TOPIC_REST_ANGLE = "rest_angle"
+MQTT_TOPIC_CRAZINESS = "craziness"
+MQTT_TOPIC_DUR = "dur"
+
+servo_pins = {
+    "head": PWM(Pin(10, Pin.OUT), freq=50),
+    "jaw": PWM(Pin(15, Pin.OUT), freq=50),
+    "wave": PWM(Pin(4, Pin.OUT), freq=50),
+    "neck": PWM(Pin(11, Pin.OUT), freq=50),
+}
+
+hand_servo = PWM(Pin(42, Pin.OUT), freq=50)
+
+TRIG_PIN = Pin(47, Pin.OUT)
+ECHO_PIN = Pin(48, Pin.IN)
+
+hand_open_angle = 90
+hand_close_angle = 0
+open_distance = 10
+distance = 0
+craziness_angle = 30
+distance_duration = 2000  # Default duration in ms
+current_positions = {"head": 90, "jaw": 90, "wave": 90, "neck": 90}
+
+last_distance_time = 0
+distance_interval = 0.1
+distance_enter_time = None
+crazy_mode_duration = 5
+crazy_mode_start_time = None
+hand_open_start_time = None
+in_crazy_mode = False
+
+def map_value(value, in_min, in_max, out_min, out_max):
+    return int((value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min)
+
+def measure_distance():
+    TRIG_PIN.value(0)
+    time.sleep_us(2)
+    TRIG_PIN.value(1)
+    time.sleep_us(10)
+    TRIG_PIN.value(0)
+    pulse_start = time.ticks_us()
+    while ECHO_PIN.value() == 0:
+        pulse_start = time.ticks_us()
+    while ECHO_PIN.value() == 1:
+        pulse_end = time.ticks_us()
+    pulse_duration = time.ticks_diff(pulse_end, pulse_start)
+    return (pulse_duration * 0.0343) / 2
+
+def mqtt_callback(topic, msg):
+    global hand_open_angle, hand_close_angle, open_distance, craziness_angle, distance_duration, current_positions
+    topic = topic.decode("utf-8")
+    msg = int(msg.decode("utf-8"))
+    if topic == MQTT_TOPIC_HAND_OPEN:
+        hand_open_angle = msg
+    elif topic == MQTT_TOPIC_HAND_CLOSE:
+        hand_close_angle = msg
+    elif topic == MQTT_TOPIC_OPEN_DISTANCE:
+        open_distance = msg
+    elif topic == MQTT_TOPIC_CRAZINESS:
+        craziness_angle = msg
+    elif topic == MQTT_TOPIC_DUR:
+        distance_duration = msg * 1000
+    elif topic in current_positions:
+        current_positions[topic] = msg
+        if not in_crazy_mode:
+            servo_pins[topic].duty(map_value(msg, 0, 180, 20, 120))
+
+def connect_wifi():
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    wlan.connect(SSID, PASSWORD)
+    while not wlan.isconnected():
+        time.sleep(0.1)
+
+def setup_mqtt():
+    client = MQTTClient("ESP32", MQTT_SERVER)
+    client.set_callback(mqtt_callback)
+    client.connect()
+    client.subscribe(MQTT_TOPIC_HEAD)
+    client.subscribe(MQTT_TOPIC_JAW)
+    client.subscribe(MQTT_TOPIC_WAVE)
+    client.subscribe(MQTT_TOPIC_NECK)
+    client.subscribe(MQTT_TOPIC_HAND_OPEN)
+    client.subscribe(MQTT_TOPIC_HAND_CLOSE)
+    client.subscribe(MQTT_TOPIC_OPEN_DISTANCE)
+    client.subscribe(MQTT_TOPIC_CRAZINESS)
+    client.subscribe(MQTT_TOPIC_DUR)
+    return client
+
+def start_crazy_mode():
+    global crazy_mode_start_time, hand_open_start_time, in_crazy_mode
+    hand_open_start_time = time.ticks_ms()
+    crazy_mode_start_time = None  # Delay crazy mode start by 1 second
+    in_crazy_mode = True
+    hand_servo.duty(map_value(hand_open_angle, 0, 180, 20, 120))
+
+def crazy_mode():
+    global in_crazy_mode, crazy_mode_start_time, hand_open_start_time
+    if crazy_mode_start_time is None:
+        if time.ticks_diff(time.ticks_ms(), hand_open_start_time) > 1000:  # Delay crazy mode by 1 second
+            crazy_mode_start_time = time.ticks_ms()
+        return
+
+    if time.ticks_diff(time.ticks_ms(), crazy_mode_start_time) < crazy_mode_duration * 1000:
+        for servo in servo_pins:
+            servo_pins[servo].duty(map_value(current_positions[servo] + craziness_angle, 0, 180, 20, 120))
+        time.sleep(0.1)
+        for servo in servo_pins:
+            servo_pins[servo].duty(map_value(current_positions[servo] - craziness_angle, 0, 180, 20, 120))
+        time.sleep(0.1)
+    else:
+        in_crazy_mode = False
+        crazy_mode_start_time = None
+        hand_open_start_time = None
+        for servo in current_positions:
+            servo_pins[servo].duty(map_value(current_positions[servo], 0, 180, 20, 120))
+        hand_servo.duty(map_value(hand_close_angle, 0, 180, 20, 120))
+
+connect_wifi()
+mqtt_client = setup_mqtt()
+
+while True:
+    mqtt_client.check_msg()
+    current_time = time.ticks_ms()
+
+    if time.ticks_diff(current_time, last_distance_time) > distance_interval * 1000:
+        distance = measure_distance()
+        mqtt_client.publish(MQTT_TOPIC_DISTANCE, str(distance))
+        last_distance_time = current_time
+
+    if distance < open_distance:
+        if distance_enter_time is None:
+            distance_enter_time = time.ticks_ms()
+        elif time.ticks_diff(time.ticks_ms(), distance_enter_time) > distance_duration and not in_crazy_mode:
+            start_crazy_mode()
+    else:
+        distance_enter_time = None
+        if not in_crazy_mode:
+            hand_servo.duty(map_value(hand_close_angle, 0, 180, 20, 120))
+
+    if in_crazy_mode:
+        crazy_mode()
+    else:
+        for servo in current_positions:
+            servo_pins[servo].duty(map_value(current_positions[servo], 0, 180, 20, 120))
+
