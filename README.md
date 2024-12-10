@@ -1,4 +1,6 @@
-# besta-ves-3-
+# Verksmiðja III - Trump
+
+Höfundar; Gunnar, Bjarni, Eduardo
 
 Beinagrind sem er með andlit fast við hendi (eins og gríma) og tekur það af þegar X hlutur kemur nálægt, samstundis spilast hljóð.
 
